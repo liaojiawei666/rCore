@@ -7,7 +7,7 @@
 //!
 //! We then call [`println!`] to display `Hello, world!`.
 
-#![deny(warnings)]
+
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
@@ -16,10 +16,14 @@ mod sbi;
 mod console;
 mod logging;
 mod lang_items;
+mod trap;
+mod batch;
+mod sync;
 use log::*;
+mod syscall;
 use core::arch::global_asm;
 global_asm!(include_str!("entry.asm"));
-
+global_asm!(include_str!("link_app.S"));
 #[no_mangle]
 fn rust_main() -> ! {
     extern "C"{
@@ -34,7 +38,7 @@ fn rust_main() -> ! {
         fn boot_stack_lower_bound();
         fn boot_stack_top();
     }
-
+    
     clear_bss();
     logging::init();
     println!("Hello, world!");
@@ -43,7 +47,9 @@ fn rust_main() -> ! {
     info!("[kernel] .data [{:#x}, {:#x})", sdata as usize, edata as usize);
     warn!("[kernel] .bss [{:#x}, {:#x})", sbss as usize, ebss as usize);
     error!("[kernel] boot_stack [{:#x}, {:#x})", boot_stack_lower_bound as usize, boot_stack_top as usize);
-    panic!("Shutdown!");
+    trap::init();
+    batch::init();
+    batch::run_next_app();
     
 }
 fn clear_bss(){
