@@ -17,9 +17,11 @@ mod console;
 mod logging;
 mod lang_items;
 mod trap;
-mod batch;
+mod task;
+mod config;
 mod sync;
 use log::*;
+mod loader;
 mod syscall;
 use core::arch::global_asm;
 global_asm!(include_str!("entry.asm"));
@@ -48,8 +50,8 @@ fn rust_main() -> ! {
     warn!("[kernel] .bss [{:#x}, {:#x})", sbss as usize, ebss as usize);
     error!("[kernel] boot_stack [{:#x}, {:#x})", boot_stack_lower_bound as usize, boot_stack_top as usize);
     trap::init();
-    batch::init();
-    batch::run_next_app();
+    loader::load_apps();
+    task::run_first_task();
     
 }
 fn clear_bss(){

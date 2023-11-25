@@ -31,7 +31,6 @@ __alltraps:
 
 
 __restore:
-    mv sp,a0 #将a0的值保存到sp中
     ld t0,32*8(sp) #将sp+0x80的值读取到t0中
     ld t1,33*8(sp) #将sp+0x88的值读取到t1中
     ld t2,2*8(sp) #将sp+0x10的值读取到t2中
