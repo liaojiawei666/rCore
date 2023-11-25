@@ -17,6 +17,9 @@ pub fn exit(exit_code:i32)->isize{
 pub fn yield_()->isize{
     sys_yield()
 }
+pub fn get_time()->isize{
+    sys_get_time()
+}
 
 #[no_mangle]
 #[link_section = ".text.entry"]

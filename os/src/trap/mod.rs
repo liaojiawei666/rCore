@@ -1,12 +1,13 @@
 use core::arch::global_asm;
 use riscv::register::{
-    scause::{self, Exception, Trap},
+    scause::{self, Exception, Trap,Interrupt},
     stval,
+    sie,
     stvec::{self, TrapMode},
 };
 global_asm!(include_str!("trap.asm"));
 pub mod context;
-use crate::{syscall::syscall, task::run_next_task};
+use crate::{syscall::syscall, task::{exit_current_and_run_next,suspend_current_and_run_next}};
 pub use context::TrapContext;
 pub fn init() {
     // 在 RV64 中， stvec 是一个 64 位的 CSR，在中断使能的情况下，保存了中断处理的入口地址。它有两个字段：
@@ -32,11 +33,15 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
         }
         Trap::Exception(Exception::StoreFault) | Trap::Exception(Exception::StorePageFault) => {
             println!("[kernel] PageFault in application, kernel killed it.");
-            run_next_task();
+            exit_current_and_run_next();
         }
         Trap::Exception(Exception::IllegalInstruction) => {
             println!("[kernel] IllegalInstruction in application, kernel killed it.");
-            run_next_task();
+            exit_current_and_run_next();
+        }
+        Trap::Interrupt(Interrupt::SupervisorTimer) => {
+            crate::timer::set_next_trigger();
+            suspend_current_and_run_next();
         }
         _ => {
             panic!(
@@ -47,4 +52,11 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
         }
     }
     cx
+}
+
+
+pub fn enable_timer_interrupt() {
+    unsafe {
+        sie::set_stimer();
+    }
 }

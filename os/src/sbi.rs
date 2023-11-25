@@ -38,3 +38,6 @@ pub fn shutdown()->!{
     sbi_call(SRST_EXTENSION,SBI_SHUTDOWN,0,0,0);
     panic!("It should shutdown!");
 }
+pub fn set_timer(timer:usize){
+    sbi_call(SBI_SET_TIMER,0,timer,0,0);
+}

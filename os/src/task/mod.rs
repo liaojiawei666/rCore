@@ -56,7 +56,7 @@ pub fn exit_current_and_run_next(){
     run_next_task();
 }
 
-pub fn run_next_task(){
+fn run_next_task(){
     TASK_MANAGER.run_next_task();
 }
 impl TaskManager{

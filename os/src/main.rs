@@ -16,6 +16,7 @@ mod sbi;
 mod console;
 mod logging;
 mod lang_items;
+mod timer;
 mod trap;
 mod task;
 mod config;
@@ -51,6 +52,8 @@ fn rust_main() -> ! {
     error!("[kernel] boot_stack [{:#x}, {:#x})", boot_stack_lower_bound as usize, boot_stack_top as usize);
     trap::init();
     loader::load_apps();
+    trap::enable_timer_interrupt();
+    timer::set_next_trigger();
     task::run_first_task();
     
 }
