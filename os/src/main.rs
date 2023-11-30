@@ -1,70 +1,72 @@
 //! The main module and entrypoint
 //!
-//! The operating system and app also starts in this module. Kernel code starts
+//! Various facilities of the kernels are implemented as submodules. The most
+//! important ones are:
+//!
+//! - [`trap`]: Handles all cases of switching from userspace to the kernel
+//! - [`task`]: Task management
+//! - [`syscall`]: System call handling and implementation
+//!
+//! The operating system also starts in this module. Kernel code starts
 //! executing from `entry.asm`, after which [`rust_main()`] is called to
-//! initialize various pieces of functionality [`clear_bss()`]. (See its source code for
+//! initialize various pieces of functionality. (See its source code for
 //! details.)
 //!
-//! We then call [`println!`] to display `Hello, world!`.
+//! We then call [`task::run_first_task()`] and for the first time go to
+//! userspace.
 
 
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
-mod sbi;
+#![feature(alloc_error_handler)]
+
+extern crate alloc;
+
+#[macro_use]
+extern crate bitflags;
+
+
 #[macro_use]
 mod console;
-mod logging;
-mod lang_items;
-mod timer;
-mod trap;
-mod task;
 mod config;
-mod sync;
-use log::*;
+mod lang_items;
 mod loader;
-mod syscall;
-use core::arch::global_asm;
-global_asm!(include_str!("entry.asm"));
-global_asm!(include_str!("link_app.S"));
-#[no_mangle]
-fn rust_main() -> ! {
-    extern "C"{
-        fn stext();
-        fn etext();
-        fn srodata();
-        fn erodata();
-        fn sdata();
-        fn edata();
+mod mm;
+mod sbi;
+mod sync;
+pub mod syscall;
+pub mod task;
+mod timer;
+pub mod trap;
+
+core::arch::global_asm!(include_str!("entry.asm"));
+core::arch::global_asm!(include_str!("link_app.S"));
+
+/// clear BSS segment
+fn clear_bss() {
+    extern "C" {
         fn sbss();
         fn ebss();
-        fn boot_stack_lower_bound();
-        fn boot_stack_top();
     }
-    
+    unsafe {
+        core::slice::from_raw_parts_mut(sbss as usize as *mut u8, ebss as usize - sbss as usize)
+            .fill(0);
+    }
+}
+
+#[no_mangle]
+/// the rust entry-point of os
+pub fn rust_main() -> ! {
     clear_bss();
-    logging::init();
-    println!("Hello, world!");
-    trace!("[kernel] .text [{:#x}, {:#x})", stext as usize, etext as usize);
-    debug!("[kernel] .rodata [{:#x}, {:#x})", srodata as usize, erodata as usize);
-    info!("[kernel] .data [{:#x}, {:#x})", sdata as usize, edata as usize);
-    warn!("[kernel] .bss [{:#x}, {:#x})", sbss as usize, ebss as usize);
-    error!("[kernel] boot_stack [{:#x}, {:#x})", boot_stack_lower_bound as usize, boot_stack_top as usize);
+    println!("[kernel] Hello, world!");
+    mm::init();
+    println!("[kernel] back to world!");
+    //mm::remap_test();
     trap::init();
-    loader::load_apps();
+    //trap::enable_interrupt();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
     task::run_first_task();
-    
-}
-fn clear_bss(){
-    extern "C"{
-        fn sbss();
-        fn ebss();
-    }
-    (sbss as usize..ebss as usize).for_each(|a| {
-        unsafe {
-            (a as *mut u8).write_volatile(0);
-        }
-    });
+   // panic!("Unreachable in rust_main!");
 }

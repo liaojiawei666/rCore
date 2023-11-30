@@ -1,29 +1,39 @@
 use core::arch::global_asm;
+use core::arch::asm;
 use riscv::register::{
     scause::{self, Exception, Trap,Interrupt},
     stval,
     sie,
     stvec::{self, TrapMode},
 };
-global_asm!(include_str!("trap.asm"));
+global_asm!(include_str!("trap.S"));
 pub mod context;
-use crate::{syscall::syscall, task::{exit_current_and_run_next,suspend_current_and_run_next}};
+use crate::{syscall::syscall, task::{exit_current_and_run_next,suspend_current_and_run_next, current_trap_cx, current_user_token}, config::{TRAMPOLINE, TRAP_CONTEXT}};
 pub use context::TrapContext;
 pub fn init() {
-    // 在 RV64 中， stvec 是一个 64 位的 CSR，在中断使能的情况下，保存了中断处理的入口地址。它有两个字段：
-    //  MODE 位于 [1:0]，长度为 2 bits；
-    //  BASE 位于 [63:2]，长度为 62 bits。
-    //  当 MODE 字段为 0 的时候， stvec 被设置为 Direct 模式，此时进入 S 模式的 Trap 无论原因如何，处理 Trap 的入口地址都是 BASE<<2 ， CPU 会跳转到这个地方进行异常处理。
-    extern "C" {
-        fn __alltraps();
-    }
+    set_kernel_trap_entry();
+}
+
+fn set_kernel_trap_entry(){
     unsafe {
-        stvec::write(__alltraps as usize, TrapMode::Direct);
+        stvec::write(trap_from_kernel as usize, TrapMode::Direct);
     }
 }
 
+fn set_user_trap_entry(){
+    unsafe {
+        stvec::write(TRAMPOLINE as usize, TrapMode::Direct);
+    }
+}
 #[no_mangle]
-pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
+pub fn trap_from_kernel()->!{
+    panic!("a trap from kernel!");
+}
+
+#[no_mangle]
+pub fn trap_handler() -> ! {
+    set_kernel_trap_entry();
+    let cx=current_trap_cx();
     let scause = scause::read();
     let stval = stval::read();
     match scause.cause() {
@@ -31,8 +41,11 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
             cx.sepc += 4;
             cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
         }
-        Trap::Exception(Exception::StoreFault) | Trap::Exception(Exception::StorePageFault) => {
-            println!("[kernel] PageFault in application, kernel killed it.");
+        Trap::Exception(Exception::StoreFault)
+        | Trap::Exception(Exception::StorePageFault)
+        | Trap::Exception(Exception::LoadFault)
+        | Trap::Exception(Exception::LoadPageFault) => {
+            println!("[kernel] PageFault in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.", stval, cx.sepc);
             exit_current_and_run_next();
         }
         Trap::Exception(Exception::IllegalInstruction) => {
@@ -51,9 +64,29 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
             );
         }
     }
-    cx
+    trap_return();
 }
-
+#[no_mangle]
+pub fn trap_return() -> ! {
+    set_user_trap_entry();
+    let trap_cx_ptr=TRAP_CONTEXT;
+    let user_satp=current_user_token();
+    extern "C" {
+        fn __alltraps();
+        fn __restore();
+    }
+    let restore_va=__restore as usize - __alltraps as usize+TRAMPOLINE;
+    unsafe {
+        asm!(
+            "fence.i",
+            "jr     {restore_va}",
+            restore_va = in(reg)restore_va,
+            in("a0") trap_cx_ptr,
+            in("a1") user_satp,
+            options(noreturn)
+        );
+    }
+}
 
 pub fn enable_timer_interrupt() {
     unsafe {

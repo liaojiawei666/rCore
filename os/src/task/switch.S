@@ -8,6 +8,10 @@
     .section .text
     .globl __switch
 __switch:
+    # __switch(
+    #     current_task_cx_ptr: *mut TaskContext,
+    #     next_task_cx_ptr: *const TaskContext
+    # )
     sd sp,8(a0)
     sd ra,0(a0)
     .set n,0

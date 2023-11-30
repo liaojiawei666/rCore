@@ -20,26 +20,20 @@ pub fn yield_()->isize{
 pub fn get_time()->isize{
     sys_get_time()
 }
+pub fn sleep(period_ms: usize) {
+    let start = get_time();
+    while get_time() < start + period_ms as isize {
+        sys_yield();
+    }
+}
 
 #[no_mangle]
 #[link_section = ".text.entry"]
 pub extern "C" fn _start()->!{
-    clear_bss();
     exit(main());
     panic!("unreachable after exit!");
 }
 
-fn clear_bss(){
-    extern "C"{
-        fn sbss();
-        fn ebss();
-    }
-    (sbss as usize..ebss as usize).for_each(|a| {
-        unsafe {
-            (a as *mut u8).write_volatile(0);
-        }
-    });
-}
 
 #[linkage = "weak"]
 #[no_mangle]
