@@ -55,6 +55,7 @@ impl StackFrameAllocator{
 
 pub fn init_frame_allocator(){
     extern "C"{fn ekernel();}
+    println!("ekernel: {:#x}",ekernel as usize);
     FRAME_ALLOCATOR.exclusive()
     .init(PhysAddr::from(ekernel as usize).ceil(),PhysAddr::from(MEMORY_END).floor());
 }

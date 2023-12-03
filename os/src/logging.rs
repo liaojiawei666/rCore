@@ -2,6 +2,7 @@ use log::{self,Level,Metadata,Record,LevelFilter,Log};
 
 struct SimpleLogger;
 
+
 impl Log for SimpleLogger{
     fn enabled(&self,_metadata:&Metadata)->bool{
         true

@@ -64,6 +64,9 @@ impl MemorySet {
             areas: Vec::new(),
         }
     }
+    pub fn recycle_data_pages(&mut self){
+        self.areas.clear();
+    }
     fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
         if let Some(data) = data {
@@ -97,9 +100,20 @@ impl MemorySet {
             None,
         );
     }
+    pub fn remove_area_with_start_vpn(&mut self, start_vpn: VirtPageNum) {
+        if let Some((idx,area))=self
+        .areas
+        .iter_mut()
+        .enumerate()
+        .find(|(_,area)|area.vpn_range.get_start()==start_vpn){
+            area.unmap(&mut self.page_table);
+            self.areas.remove(idx);
+        }
+    }
 
     pub fn new_kernel() -> Self {
         let mut memory_set = Self::new_bare();
+        println!("mapping trampoline");
         memory_set.map_trampoline();
         println!(".text [{:#x}, {:#x})", stext as usize, etext as usize);
         println!(".rodata [{:#x}, {:#x})", srodata as usize, erodata as usize);
@@ -166,7 +180,20 @@ impl MemorySet {
     pub fn token(&self)->usize{
         self.page_table.token()
     }
-
+    pub fn from_existed_user(user_space:&MemorySet)->MemorySet{
+        let mut memory_set=Self::new_bare();
+        memory_set.map_trampoline();
+        for area in user_space.areas.iter(){
+            let mut new_area=MapArea::from_another(area);
+            memory_set.push(new_area, None);
+            for vpn in area.vpn_range{
+                let src_ppn=user_space.translate(vpn).unwrap().ppn();
+                let dst_ppn=memory_set.translate(vpn).unwrap().ppn();
+                dst_ppn.get_bytes_array().copy_from_slice(src_ppn.get_bytes_array());
+            }
+        }
+        memory_set
+    }
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
         let mut memory_set = Self::new_bare();
         memory_set.map_trampoline();
@@ -248,6 +275,12 @@ impl MapArea {
             map_type,
             map_perm,
         }
+    }
+    pub fn from_another(another:&MapArea)->Self{
+        Self { vpn_range: VPNRange::new(another.vpn_range.get_start(), another.vpn_range.get_end()), 
+            data_frames: BTreeMap::new(), 
+            map_type: another.map_type, 
+            map_perm: another.map_perm }
     }
     pub fn map(&mut self, page_table: &mut PageTable) {
         for vpn in self.vpn_range {
