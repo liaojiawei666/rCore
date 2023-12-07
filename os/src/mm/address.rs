@@ -101,6 +101,11 @@ impl PhysPageNum {
         unsafe { (pa.0 as *mut T).as_mut().unwrap() }
     }
 }
+impl StepByOne for PhysPageNum {
+    fn step(&mut self) {
+        self.0 += 1;
+    }
+}
 
 impl VirtPageNum {
     pub fn indexes(&self) -> [usize; 3] {

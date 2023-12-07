@@ -12,6 +12,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use lazy_static::lazy_static;
 use riscv::register::satp;
+use crate::config::MIMO;
 lazy_static! {
     /// a memory set instance through lazy_static! managing kernel space
     pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> =
@@ -113,6 +114,18 @@ impl MemorySet {
 
     pub fn new_kernel() -> Self {
         let mut memory_set = Self::new_bare();
+        println!("mapping memory-mapped registers");
+        for pair in MIMO{
+            memory_set.push(
+                MapArea::new(
+                    (*pair).0.into(),
+                    ((*pair).0+(*pair).1).into(),
+                    MapType::Identical,
+                    MapPermission::R | MapPermission::W,
+                ),
+                None,
+            );
+        }
         println!("mapping trampoline");
         memory_set.map_trampoline();
         println!(".text [{:#x}, {:#x})", stext as usize, etext as usize);

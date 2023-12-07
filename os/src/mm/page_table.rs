@@ -1,4 +1,3 @@
-use crate::config::PAGE_SIZE_BITS;
 use alloc::string::String;
 use bitflags::*;
 
@@ -185,3 +184,20 @@ pub fn translated_refmut<T>(token:usize,ptr:*mut T)->&'static mut T{
     let pa=page_table.translate_va(VirtAddr::from(va)).unwrap();
     pa.get_mut()
 }
+pub struct UserBuffer{
+    pub buffers:Vec<&'static mut [u8]>
+}
+
+impl UserBuffer{
+    pub fn new(buffers:Vec<&'static mut [u8]>)->Self{
+        Self { buffers }
+    }
+    pub fn len(&self)->usize{
+        let mut total=0usize;
+        for b in self.buffers.iter(){
+            total+=b.len();
+        }
+        total
+    }
+}
+

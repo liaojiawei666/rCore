@@ -2,6 +2,17 @@
 #![feature(alloc_error_handler)]
 #![feature(linkage)]
 #![no_std]
+use bitflags::bitflags;
+
+bitflags! {
+    pub struct OpenFlags: u32 {
+        const RDONLY =0;
+        const WRONLY =1;
+        const RDWR=1<<1;
+        const CREATE=1<<9;
+        const TRUNC=1<<10;
+    }
+}
 
 pub mod syscall;
 use syscall::*;
@@ -73,6 +84,12 @@ pub fn wait(exit_code: &mut i32) -> isize {
         }
     }
 }
+
+pub fn open(path:&str,flags:OpenFlags)->isize{
+    sys_open(path,flags.bits)
+}
+pub fn close(fd: usize) -> isize { sys_close(fd) }
+
 
 
 
