@@ -5,7 +5,7 @@ mod page_table;
 mod memory_set;
 pub use memory_set::{MemorySet,MapPermission};
 pub use address::{PhysPageNum,VirtAddr,PhysAddr,StepByOne}; 
-pub use page_table::{translated_byte_buffer,translated_str,translated_refmut,UserBuffer,PageTable};
+pub use page_table::{translated_byte_buffer,translated_str,translated_refmut,UserBuffer,PageTable,translated_ref};
 pub use heap_allocator::heap_test;
 pub use memory_set::KERNEL_SPACE;
 pub use memory_set::remap_test;

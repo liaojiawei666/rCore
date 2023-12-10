@@ -3,6 +3,7 @@ use crate::block_dev::BlockDevice;
 use crate::efs::EasyFileSystem;
 use crate::layout::DiskInodeType;
 use crate::layout::{DirEntry, DiskInode, DIRENT_SZ};
+use alloc::format;
 use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -83,6 +84,18 @@ impl Inode {
             }
             v
         })
+    }
+    pub fn ll(&self) -> Vec<String> {
+        let filenames=self.ls();
+        let mut v:Vec<String>=Vec::new();
+        for filename in filenames.into_iter(){
+            let file_inode=self.find(&filename).unwrap();
+            file_inode.read_disk_inode(|disknode|{
+               let file_info=format!("{} {}",&filename,disknode.size);
+                v.push(file_info);
+            })
+        }
+        v
     }
     pub fn create(&self,name:&str)->Option<Arc<Inode>>{
         let mut fs=self.fs.lock();

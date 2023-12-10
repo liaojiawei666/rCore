@@ -12,10 +12,9 @@ OBJCOPY := rust-objcopy --binary-architecture=riscv64
 elf: $(APPS)
 	@cargo build --release
 
-binary: elf
-	@$(foreach elf, $(ELFS), $(OBJCOPY) $(elf) --strip-all -O binary $(patsubst $(TARGET_DIR)/%, $(TARGET_DIR)/%.bin, $(elf));)
-
-build: binary
+build: 
+	@cargo build --release
+	../easy-fs-fuse/target/release/easy-fs-fuse -s ./src/bin -t ./target/$(TARGET)/$(MODE)/
 
 clean:
 	@cargo clean

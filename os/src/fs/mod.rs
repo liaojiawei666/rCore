@@ -1,8 +1,10 @@
 use crate::mm::UserBuffer;
 mod inode;
 mod stdio;
+mod pipe;
 pub use inode::{OSInode, ROOT_INODE,open_file,OpenFlags,list_apps};
 pub use stdio::{Stdin, Stdout};
+pub use pipe::make_pipe;
 pub trait File:Send+Sync{
    /// If readable
    fn readable(&self) -> bool;

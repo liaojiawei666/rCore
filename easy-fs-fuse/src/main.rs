@@ -55,7 +55,7 @@ fn easy_fs_pack() -> std::io::Result<()> {
             .write(true)
             .create(true)
             .open(format!("{}{}", target_path, "fs.img"))?;
-        f.set_len(16 * 2048 * 512).unwrap();
+        f.set_len(32 * 2048 * 512).unwrap();
         f
     })));
     // 16MiB, at most 4095 files
@@ -78,12 +78,15 @@ fn easy_fs_pack() -> std::io::Result<()> {
         // create a file in easy-fs
         let inode = root_inode.create(app.as_str()).unwrap();
         // write data to easy-fs
+        
         inode.write_at(0, all_data.as_slice());
+        println!("{}: {} bytes", app, all_data.len());
+        let ll_apps= root_inode.ll();       
+        println!("")
     }
-    // list apps
-    // for app in root_inode.ls() {
-    //     println!("{}", app);
-    // }
+    for app in root_inode.ll() {
+        println!("{}", app);
+    }
     Ok(())
 }
 
